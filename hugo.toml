@@ -1,0 +1,4 @@
+baseURL = 'https://ruggedgazelle.com/'
+languageCode = 'en-us'
+title = 'ruggedgazelle -- scraped together lessons and projects...'
+theme = 'gokarna'
