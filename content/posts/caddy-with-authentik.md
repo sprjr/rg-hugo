@@ -52,7 +52,7 @@ https://subdomain.example.com:443 {
 }
 ```
 All this does is direct HTTPS traffic to whatever target you are running the service on. Unfortunately, if you're running on containers, stuff like routing and dns and hostnames and IP address can get quite confusing quite quickly.
-As can be seen in the compose file I provided above, the lines below are present. This can, in certain configurations, entirely remove the issue of having to set up docker networks or handle docker's implementation of DNS.
+As can be seen in the compose file I provided above, the lines below are present. This can, in certain configurations, entirely remove the issue of having to set up docker networks or handle docker's implementation of DNS. I'm not the most knowledgeable about networking, but in any case it fixed my issues.
 
 ```
     extra_hosts:
