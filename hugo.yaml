@@ -3,5 +3,6 @@ languageCode: en-us
 params:
   contact:
     email: info@rawliyosh.com
+    github: https://github.com/sprjr
   subtitle: a collection of projects and thoughts
 title: Rugged Gazelle
