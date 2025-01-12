@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en"><head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <style>
+        :root {
+            --accent-color: #FF4D4D;
+        }
+    </style>
+
+    
+    
+    
+    
+    
+    
+
+    
+    <title>Caddy With Authentik</title>
+    <meta name="description" content="Configure Caddy to Properly Work with Containers on the Same Host This post assumes that you have a working instance of Authentik set up, and they&rsquo;re …">
+    <meta name="keywords" content=''>
+
+    <meta property="og:url" content="http://localhost:1313/posts/caddy-with-authentik/">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Caddy With Authentik">
+    <meta property="og:description" content="Configure Caddy to Properly Work with Containers on the Same Host This post assumes that you have a working instance of Authentik set up, and they&rsquo;re …">
+    <meta property="og:image" content="http://localhost:1313/">
+    <meta property="og:image:secure_url" content="http://localhost:1313/">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Caddy With Authentik">
+    <meta name="twitter:description" content="Configure Caddy to Properly Work with Containers on the Same Host This post assumes that you have a working instance of Authentik set up, and they&rsquo;re …">
+    <meta property="twitter:domain" content="http://localhost:1313/posts/caddy-with-authentik/">
+    <meta property="twitter:url" content="http://localhost:1313/posts/caddy-with-authentik/">
+    <meta name="twitter:image" content="http://localhost:1313/">
+
+    
+    <link rel="canonical" href="http://localhost:1313/posts/caddy-with-authentik/">
+
+    
+    <link rel="stylesheet" type="text/css" href="/css/normalize.min.css" media="print">
+
+    
+    <link rel="stylesheet" type="text/css" href="/css/main.min.css">
+
+    
+    <link id="dark-theme" rel="stylesheet" href="/css/dark.min.css">
+
+    
+    <script src="/js/bundle.min.9a920d7dabdbad8363b6a0a94e29a9dfebdb7ee64cfcb193a0145e512ef2bdab.js" integrity="sha256-mpINfavbrYNjtqCpTimp3&#43;vbfuZM/LGToBReUS7yvas="></script>
+
+    
+    
+</head>
+<body>
+        <script>
+            
+            setThemeByUserPref();
+        </script><header class="header">
+    <nav class="header-nav">
+
+        
+
+        <div class="nav-title">
+            <a class="nav-brand" href="http://localhost:1313/">ruggedgazelle -- scraped together thoughts and projects...</a>
+        </div>
+
+        <div class="nav-links">
+            
+
+            <span class="nav-icons-divider"></span>
+            <div class="nav-link dark-theme-toggle">
+                <span class="sr-only dark-theme-toggle-screen-reader-target"></span>
+                <a>
+                    <span class="theme-toggle-icon" data-feather="moon"></span>
+                </a>
+            </div>
+
+            <div class="nav-link" id="hamburger-menu-toggle">
+                <span class="sr-only hamburger-menu-toggle-screen-reader-target">menu</span>
+                <a>
+                    <span data-feather="menu"></span>
+                </a>
+            </div>
+
+            
+            <ul class="nav-hamburger-list visibility-hidden">
+                
+                <li class="nav-item dark-theme-toggle">
+                    <span class="sr-only dark-theme-toggle-screen-reader-target">theme</span>
+                    <a>
+                        <span class="theme-toggle-icon" data-feather="moon"></span>
+                    </a>
+                </li>
+            </ul>
+
+        </div>
+    </nav>
+</header>
+<main id="content">
+    <div class="post container">
+    <div class="post-header-section">
+        <h1>Caddy With Authentik</h1>
+
+        
+
+        
+	
+	
+	
+	
+        
+
+	
+
+	
+
+	
+          <small role="doc-subtitle"></small>
+	
+
+	
+          <p class="post-date">October 10, 2024
+           
+          </p>
+	
+
+        <ul class="post-tags">
+          
+        </ul>
+    </div>
+
+    <div class="post-content">
+        <h2 id="configure-caddy-to-properly-work-with-containers-on-the-same-host">Configure Caddy to Properly Work with Containers on the Same Host</h2>
+<p>This post assumes that you have a working instance of Authentik set up, and they&rsquo;re you&rsquo;re familiar with docker/docker-compose, although I&rsquo;ll use docker-compose throughout this content. At the time of writing this, I have both Caddy and Authentik set up as containers.</p>
+<h3 id="caddy">Caddy</h3>
+<p>To get started, here&rsquo;s my compose file for Caddy. Full docs can be found at <a href="https://caddyserver.com/">https://caddyserver.com/</a>.</p>
+<pre tabindex="0"><code>services:
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - &#34;80:80&#34;
+      - &#34;443:443&#34;
+      - &#34;443:443/udp&#34;
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./site:/srv
+      - caddy_data:/data
+      - caddy_config:/config
+    network_mode: host
+    extra_hosts:
+      - &#34;host.docker.internal:host-gateway&#34;
+
+volumes:
+  caddy_data:
+  caddy_config:
+</code></pre><p>It&rsquo;s worth noting that I set up two volumes as docker volumes, not mounted on the host filesystem itself (<code>caddy_data</code> and <code>caddy_config</code>). I have never needed to change this. I&rsquo;ve also noticed that ./site has never populated any data through my usage, nor have I ever need to put any in. The most edited file for me as been the Caddyfile. If you&rsquo;re not familiar with Caddy and how to handle reverse proxying or similar tasks, it&rsquo;s primarily accomplished by configuring the Caddyfile.</p>
+<p>A simple example configuration of the Caddyfile might look like this:</p>
+<pre tabindex="0"><code>https://subdomain.example.com:443 {
+    reverse_proxy hostname:port
+}
+</code></pre><p>All this does is direct HTTPS traffic to whatever target you are running the service on. Unfortunately, if you&rsquo;re running on containers, stuff like routing and dns and hostnames and IP address can get quite confusing quite quickly.
+As can be seen in the compose file I provided above, the lines below are present. This can, in certain configurations, entirely remove the issue of having to set up docker networks or handle docker&rsquo;s implementation of DNS. I&rsquo;m not the most knowledgeable about networking, but in any case it fixed my issues.</p>
+<pre tabindex="0"><code>    extra_hosts:
+      - &#34;host.docker.internal:host-gateway&#34;
+</code></pre>
+        
+    </div>
+
+    <div class="prev-next">
+        
+    </div>
+
+    
+    
+    
+</div>
+
+
+
+    
+
+        </main><footer class="footer">
+    
+    
+
+    
+
+    
+
+    
+
+    <span>
+        Made with &#10084;&#65039; using <a target="_blank" href="https://github.com/526avijitgupta/gokarna">Gokarna</a>
+    </span>
+</footer>
+</body>
+</html>

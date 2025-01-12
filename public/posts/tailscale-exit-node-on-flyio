@@ -1,0 +1,96 @@
+# Tailscale Exit Node on Fly.io
+
+## Overview
+
+This article goes over how to implement tailscale running as an exit node on a fly.io container. I set this up around April 2024, but haven't documented it until now. After going through it again the process has improved a bit. I still wanted to make my own post as I have a few settings that differ from the documented setup that make it easier, I think.
+
+Running tailscale as an exit node on fly.io is a great way to to handle having a well-integrated, low-overhead VPN in any location that fly.io offers hosting. I personally use it in Japan to handle family connections, as well as a few places in the United States. I have yet to run into any latency or bandwidth issues, though I rarely make any big downloads, mostly just streaming and browsing.
+
+### Getting Started
+
+I won't go through it here, but you'll need both an account on Tailscale and on Fly.io. You can also manage fly.io machines via the command line with their tool `flyctl`. You'll need to login to that as well.
+
+# Tailscale Configuration
+## Generate an Auth Key
+
+Once you're all logged in and ready to go, the next step is to create an auth key on Tailscale. You can do this by accessing the admin console on their website, going to Settings > Keys, and generating an Auth Key. I found it at [this link](https://login.tailscale.com/admin/settings/keys) as of 1-10-2025.
+
+## Configure the Auth Key
+You can name it what you want. You can set it to be re-usable or not, depending on your preferences. The expiration is also dependant on when you plan to use it and if you want it to be re-usable. I also mark mine as ephemeral and pre-approved to save on headache later. This is especially important for pre-approved so you're not having to dig through machines. I haven't tagged mine.
+
+Once you generate it, take note of your key as you'll need to create a secret via flyctl next and you won't see it again.
+
+# Flyctl Configuration
+## Create a Secret
+
+Assuming you have installed and logged into the flyctl cli tool, you can create a secret by running `fly secrets create TAILSCALE_AUTH_KEY="<tailscale-generated-auth-key>"`
+
+## Setup the Container
+
+In your machine that you're working out of, go ahead and set up a directory for your Fly.io projects. I threw mine in with my other containers. I just structured it as follows: containers > fly.io > tailscale
+
+Once you have your directory ready, you'll need to create three files: Dockerfile, start.sh, and fly.toml. When you deploy your machine these three files will be used to configure the cloud-hosted container.
+
+### Dockerfile
+The Dockerfile is as follows:
+
+```
+FROM alpine:latest as builder
+WORKDIR /app
+COPY . ./
+FROM alpine:latest
+RUN apk update && apk add ca-certificates iptables ip6tables && rm -rf /var/cache/apk/*
+
+# Copy binary to production image.
+COPY --from=builder /app/start.sh /app/start.sh
+
+# Copy Tailscale binaries from the tailscale image on Docker Hub.
+COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscaled /app/tailscaled
+COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscale /app/tailscale
+RUN mkdir -p /var/run/tailscale /var/cache/tailscale /var/lib/tailscale
+
+# Run on container startup.
+CMD ["/app/start.sh"]
+```
+
+### fly.toml
+The fly.toml is as follows (make sure to read the documentation about this one and fill out the app field):
+
+```
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = '<name>'
+primary_region = 'nrt'
+kill_signal = 'SIGINT'
+kill_timeout = '5s'
+
+[build]
+
+[env]
+  PORT = '41641'
+
+[http_service]
+  internal_port = 41641
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[services]]
+  protocol = 'udp'
+  internal_port = 41641
+  processes = ['app']
+
+  [[services.ports]]
+    port = 41641
+
+  [services.concurrency]
+    type = 'connections'
+    hard_limit = 100
+    soft_limit = 75
+
+[[vm]]
+  size = 'shared-cpu-1x'
+```
