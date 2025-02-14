@@ -94,3 +94,28 @@ kill_timeout = '5s'
 [[vm]]
   size = 'shared-cpu-1x'
 ```
+
+And finally, the start.sh file:
+
+```
+#!/usr/bin/env sh
+
+echo 'Starting up...'
+
+/app/tailscaled \
+    --verbose=1 \
+    --port=41641 \
+    --state=mem: \
+    --state=/var/lib/tailscale/tailscaled.state \
+    --socket=/var/run/tailscale/tailscaled.sock &
+
+/app/tailscale up \
+    --authkey=${TAILSCALE_AUTHKEY} \
+    --hostname=fly-${FLY_REGION} \
+    --advertise-exit-node
+
+/app/fly-ts-en
+
+echo "Tailscale started."
+sleep infinity
+```
